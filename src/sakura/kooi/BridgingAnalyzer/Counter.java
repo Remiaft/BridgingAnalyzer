@@ -1,7 +1,9 @@
 package sakura.kooi.BridgingAnalyzer;
 
+import sakura.kooi.BridgingAnalyzer.api.event.PlayerGetItemEvent;
+import sakura.kooi.BridgingAnalyzer.utils.SoundMachine;
+import sakura.kooi.BridgingAnalyzer.utils.Utils;
 import lombok.Getter;
-import lombok.Setter;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -11,15 +13,15 @@ import org.bukkit.block.Chest;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitTask;
-import sakura.kooi.BridgingAnalyzer.utils.SoundMachine;
-import sakura.kooi.BridgingAnalyzer.utils.Utils;
+import sakura.kooi.BridgingAnalyzer.api.event.PlayerToggleOptionEvent;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 
 public class Counter {
     public static HashSet<Block> scheduledBreakBlocks = new HashSet<>();
-    private ArrayList<Long> counterCPS = new ArrayList<>();
+    private ArrayList<Long>
+            counterCPS = new ArrayList<>();
     private int maxCPS = 0;
     private ArrayList<Long> counterBridge = new ArrayList<>();
     private double maxBridge = 0;
@@ -29,17 +31,61 @@ public class Counter {
     private Block lastBlock;
     private Location checkPoint = Bukkit.getWorld("world").getSpawnLocation().add(0.5, 1, 0.5);
     private Player player;
+
+    public boolean setSpeedCountEnabled(boolean b) {
+        PlayerToggleOptionEvent event = new PlayerToggleOptionEvent(player, "speedCount",b);
+        Bukkit.getPluginManager().callEvent(event);
+        if (!event.isCancelled()) {
+            speedCountEnabled = b;
+            return true;
+        }
+        else if (event.getDenyMessage() != null) player.sendMessage("§b§l搭路练习 §7» §f"+event.getDenyMessage());
+        return false;
+    }
+
     @Getter
-    @Setter
     private boolean speedCountEnabled = true;
+
+    public boolean setPvPEnabled(boolean b) {
+        PlayerToggleOptionEvent event = new PlayerToggleOptionEvent(player, "pvp",b);
+        Bukkit.getPluginManager().callEvent(event);
+        if (!event.isCancelled()) {
+            PvPEnabled = b;
+            return true;
+        }
+        else if (event.getDenyMessage() != null) player.sendMessage("§b§l搭路练习 §7» §f"+event.getDenyMessage());
+        return false;
+    }
+
     @Getter
-    @Setter
     private boolean PvPEnabled = false;
+
+    public boolean setHighlightEnabled(boolean b) {
+        PlayerToggleOptionEvent event = new PlayerToggleOptionEvent(player, "highLight",b);
+        Bukkit.getPluginManager().callEvent(event);
+        if (!event.isCancelled()) {
+            highlightEnabled = b;
+            return true;
+        }
+        else if (event.getDenyMessage() != null) player.sendMessage("§b§l搭路练习 §7» §f"+event.getDenyMessage());
+        return false;
+    }
+
     @Getter
-    @Setter
     private boolean highlightEnabled = true;
+
+    public boolean setStandBridgeMarkerEnabled(boolean b) {
+        PlayerToggleOptionEvent event = new PlayerToggleOptionEvent(player, "standBridgeMarker",b);
+        Bukkit.getPluginManager().callEvent(event);
+        if (!event.isCancelled()) {
+            standBridgeMarkerEnabled = b;
+            return true;
+        }
+        else if (event.getDenyMessage() != null) player.sendMessage("§b§l搭路练习 §7» §f"+event.getDenyMessage());
+        return false;
+    }
+
     @Getter
-    @Setter
     private boolean standBridgeMarkerEnabled = false;
     public Counter(Player p) {
         player = p;
@@ -167,32 +213,32 @@ public class Counter {
     public void setCheckPoint(Location loc) {
         checkPoint = loc;
         Block target = loc.add(0, -1, 0).getBlock().getRelative(BlockFace.DOWN, 3);
+        giveItem(target);
+
+    }
+    public void giveItem(Block target){
+        BridgingAnalyzer.clearInventory(player);
         if (target.getType() == Material.CHEST) {
-            BridgingAnalyzer.clearInventory(player);
+
             Chest chest = (Chest) target.getState();
-            for (ItemStack stack : chest.getBlockInventory().getContents())
+            ItemStack[] itemStacks = chest.getBlockInventory().getContents().clone();
+            PlayerGetItemEvent event = new PlayerGetItemEvent(player, itemStacks);
+            Bukkit.getPluginManager().callEvent(event);
+            for (ItemStack stack : event.getItemStacks())
                 if (stack != null) {
                     Utils.addItem(player.getInventory(), stack.clone());
                 }
             player.getWorld().playSound(player.getLocation(), SoundMachine.get("ITEM_PICKUP", "ENTITY_ITEM_PICKUP"), 1,
                     1);
+        }else {
+            player.getInventory().addItem(BridgingAnalyzer.getBlockSkinProvider().provide(player));
         }
-
     }
 
     public void teleportCheckPoint() {
         player.teleport(checkPoint);
         Block target = checkPoint.getBlock().getRelative(BlockFace.DOWN, 3);
-        if (target.getType() == Material.CHEST) {
-            BridgingAnalyzer.clearInventory(player);
-            Chest chest = (Chest) target.getState();
-            for (ItemStack stack : chest.getBlockInventory().getContents())
-                if (stack != null) {
-                    Utils.addItem(player.getInventory(), stack.clone());
-                }
-            player.getWorld().playSound(player.getLocation(), SoundMachine.get("ITEM_PICKUP", "ENTITY_ITEM_PICKUP"), 1,
-                    1);
-        }
+        giveItem(target);
 
     }
 

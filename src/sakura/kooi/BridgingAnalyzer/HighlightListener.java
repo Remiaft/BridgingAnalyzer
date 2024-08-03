@@ -1,5 +1,6 @@
 package sakura.kooi.BridgingAnalyzer;
 
+import sakura.kooi.BridgingAnalyzer.utils.ParticleEffects;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -8,7 +9,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;
-import sakura.kooi.BridgingAnalyzer.utils.ParticleEffects;
 
 import java.util.HashMap;
 

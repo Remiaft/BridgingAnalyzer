@@ -1,5 +1,7 @@
 package sakura.kooi.BridgingAnalyzer;
 
+import sakura.kooi.BridgingAnalyzer.api.event.VictoryEvent;
+import sakura.kooi.BridgingAnalyzer.utils.*;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -12,7 +14,6 @@ import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.Vector;
-import sakura.kooi.BridgingAnalyzer.utils.*;
 
 public class TriggerBlockListener implements Listener {
     @EventHandler
@@ -84,6 +85,7 @@ public class TriggerBlockListener implements Listener {
 
             };
             BridgingAnalyzer.getCounter(e.getPlayer()).vectoryBreakBlock();
+            Bukkit.getPluginManager().callEvent(new VictoryEvent(e.getPlayer(),e.getTo().getBlock().getRelative(BlockFace.DOWN)));
             TitleUtils.sendTitle(e.getPlayer(), "§6§lVICTORY", "", 5, 20, 5);
             e.getPlayer().getWorld().playSound(e.getTo(), Sound.LEVEL_UP, 1, 1);
         }
@@ -101,6 +103,7 @@ public class TriggerBlockListener implements Listener {
             Vector finalVector = getAttackVector(player.getLocation());
             Location finalAttackFrom = player.getLocation().add(finalVector);
             finalAttackFrom.setY(player.getLocation().getY() + 1.2);
+            ParticleLine.drawParticleLine(player.getLocation().add(0.0D, 1.2D, 0.0D), finalAttackFrom, ParticleEffects.REDSTONE, 4);
             Vector normalize = finalAttackFrom.toVector().subtract(player.getLocation().toVector()).normalize();
             Bukkit.getScheduler().runTaskLater(BridgingAnalyzer.getInstance(), () -> {
                 player.setNoDamageTicks(0);

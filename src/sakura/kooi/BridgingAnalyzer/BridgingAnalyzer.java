@@ -1,5 +1,12 @@
 package sakura.kooi.BridgingAnalyzer;
 
+import sakura.kooi.BridgingAnalyzer.api.BlockSkinProvider;
+import sakura.kooi.BridgingAnalyzer.api.event.PlayerFallVoidEvent;
+import sakura.kooi.BridgingAnalyzer.commands.*;
+import sakura.kooi.BridgingAnalyzer.utils.Metrics;
+import sakura.kooi.BridgingAnalyzer.utils.NoAIUtils;
+import sakura.kooi.BridgingAnalyzer.utils.TitleUtils;
+import sakura.kooi.BridgingAnalyzer.utils.Utils;
 import lombok.Getter;
 import lombok.Setter;
 import org.bukkit.Bukkit;
@@ -22,12 +29,6 @@ import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
-import sakura.kooi.BridgingAnalyzer.commands.*;
-import sakura.kooi.BridgingAnalyzer.utils.Metrics;
-import sakura.kooi.BridgingAnalyzer.utils.NoAIUtils;
-import sakura.kooi.BridgingAnalyzer.utils.TitleUtils;
-import sakura.kooi.BridgingAnalyzer.utils.Utils;
-import sakura.kooi.BridgingAnalyzer.api.BlockSkinProvider;
 
 import java.util.HashMap;
 
@@ -37,8 +38,8 @@ public class BridgingAnalyzer extends JavaPlugin implements Listener {
     @Getter
     private static HashMap<Player, Counter> counters = new HashMap<>();
     @Getter
-    private static HashMap<Block, MaterialData> placedBlocks = new HashMap<>();
-    @Setter
+    private static final HashMap<Block, MaterialData> placedBlocks = new HashMap<>();
+    @Setter @Getter
     private static BlockSkinProvider blockSkinProvider;
 
     public static void clearEffect(Player player) {
@@ -54,7 +55,7 @@ public class BridgingAnalyzer extends JavaPlugin implements Listener {
         Inventory inv = p.getInventory();
         for (int i = 0; i < inv.getSize(); i++) {
             ItemStack item = inv.getItem(i);
-            if (item != null && item.getItemMeta() != null && item.getItemMeta().getDisplayName() != null && item.getItemMeta().getDisplayName().contains("Key")) {
+            if (item != null && item.getItemMeta() != null && item.getItemMeta().getDisplayName() != null && item.getItemMeta().getDisplayName().contains("钥匙")) {
                     continue;
                 }
             inv.setItem(i, null);
@@ -95,11 +96,9 @@ public class BridgingAnalyzer extends JavaPlugin implements Listener {
 
     public static void teleportCheckPoint(Player p) {
         p.setFallDistance(0);
-        clearInventory(p);
-        p.getInventory().addItem(blockSkinProvider.provide(p));
         p.setFoodLevel(20);
         p.setHealth(20);
-        p.setNoDamageTicks(10);
+        //p.setNoDamageTicks(10);
         getCounter(p).teleportCheckPoint();
         p.setGameMode(GameMode.SURVIVAL);
     }
@@ -156,7 +155,6 @@ public class BridgingAnalyzer extends JavaPlugin implements Listener {
                 teleportCheckPoint((Player) e.getEntity());
                 TitleUtils.sendTitle((Player) e.getEntity(), "",
                         "§4致命伤害 - " + Utils.formatDouble(e.getFinalDamage() / 2) + " ❤", 10, 20, 10);
-                e.setDamage(0.0);
             } else if (e.getFinalDamage() > 10) {
                 TitleUtils.sendTitle((Player) e.getEntity(), "",
                         "§c严重伤害 - " + Utils.formatDouble(e.getFinalDamage() / 2) + " ❤", 10, 20, 10);
@@ -206,7 +204,6 @@ public class BridgingAnalyzer extends JavaPlugin implements Listener {
         Bukkit.getConsoleSender().sendMessage(new String[]{
                 "§bBridgingAnalyzer §7>> §f----------------------------------------------------------------",
                 "§bBridgingAnalyzer §7>> §a搭路练习 已加载 §bBy.SakuraKooi",
-                "§bBridgingAnalyzer §7>> §chttps://github.com/SakuraKoi/BridgingAnalyzer/",
                 "§bBridgingAnalyzer §7>> §f----------------------------------------------------------------",
                 "§bBridgingAnalyzer §7>> §e踩在 §a绿宝石块 §e上可以设置传送点",
                 "§bBridgingAnalyzer §7>> §e踩在 §c红石块 §e上可以回到传送点",
@@ -222,7 +219,6 @@ public class BridgingAnalyzer extends JavaPlugin implements Listener {
     public void onJoin(PlayerJoinEvent e) {
         e.getPlayer().sendMessage(new String[]{
                 "§b§l搭路练习 §7>> §e输入 §6/bridge §e更改练习参数",
-                "§b§l搭路练习 §7>> §6Bilibili @SakuraKooi"
         });
         if (e.getPlayer().hasPermission("bridginganalyzer.noclear")) return;
         teleportCheckPoint(e.getPlayer());
@@ -236,39 +232,66 @@ public class BridgingAnalyzer extends JavaPlugin implements Listener {
         }
     }
 
+    HashMap<Player,Player> damage = new HashMap<>();
+    HashMap<Player,Long> time = new HashMap<>();
     @EventHandler
     public void onPvP(EntityDamageByEntityEvent e) {
         if (e.isCancelled()) return;
         if (e.getEntity() == null) return;
         if (e.getDamager() == null) return;
-        if (e.getEntity().getType() == EntityType.PLAYER) if (e.getDamager().getType() == EntityType.PLAYER) {
-            int state = onPvPDamage((Player) e.getEntity(), (Player) e.getDamager());
-            if (state == -1) {
-                e.setCancelled(true);
-            } else if (state == 1) {
-                e.setCancelled(true);
-                BridgingAnalyzer.getCounter((Player) e.getDamager()).setPvPEnabled(true);
-                TitleUtils.sendTitle((Player) e.getDamager(), "", "§c注意: §aPvP已开启", 10, 20, 10);
-                ((Player) e.getEntity()).damage(0.00);
-                ((Player) e.getEntity()).setNoDamageTicks(60);
-                ((Player) e.getDamager()).setNoDamageTicks(60);
-            }
-        } else if (e.getDamager() instanceof Projectile) {
-            Projectile proj = (Projectile) e.getDamager();
-            if (proj.getShooter() instanceof Player) {
-                int state = onPvPDamage((Player) e.getEntity(), (Player) proj.getShooter());
+        if (e.getEntity().getType() == EntityType.PLAYER) {
+            if (e.getDamager().getType() == EntityType.PLAYER) {
+                int state = onPvPDamage((Player) e.getEntity(), (Player) e.getDamager());
                 if (state == -1) {
                     e.setCancelled(true);
                 } else if (state == 1) {
                     e.setCancelled(true);
-                    BridgingAnalyzer.getCounter((Player) proj.getShooter()).setPvPEnabled(true);
-                    TitleUtils.sendTitle((Player) proj.getShooter(), "", "§c注意: §aPvP已开启", 10, 20, 10);
+                    BridgingAnalyzer.getCounter((Player) e.getDamager()).setPvPEnabled(true);
+                    TitleUtils.sendTitle((Player) e.getDamager(), "", "§c注意: §aPvP已开启", 10, 20, 10);
                     ((Player) e.getEntity()).damage(0.00);
-                    ((Player) e.getEntity()).setNoDamageTicks(60);
-                    ((Player) proj.getShooter()).setNoDamageTicks(60);
+                    //((Player) e.getEntity()).setNoDamageTicks(60);
+                    //((Player) e.getDamager()).setNoDamageTicks(60);
+                    damage.put(((Player) e.getEntity()), ((Player) e.getDamager()));
+                    time.put(((Player) e.getEntity()),System.currentTimeMillis());
+                } else if( state == 0){
+                    e.setCancelled(false);
+                    damage.put(((Player) e.getEntity()), ((Player) e.getDamager()));
+                    time.put(((Player) e.getEntity()),System.currentTimeMillis());
+                }
+            } else if (e.getDamager() instanceof Projectile) {
+                Projectile proj = (Projectile) e.getDamager();
+                if (proj.getShooter() instanceof Player) {
+                    int state = onPvPDamage((Player) e.getEntity(), (Player) proj.getShooter());
+                    if (state == -1) {
+                        e.setCancelled(true);
+                    } else if (state == 1) {
+                        e.setCancelled(true);
+                        BridgingAnalyzer.getCounter((Player) proj.getShooter()).setPvPEnabled(true);
+                        TitleUtils.sendTitle((Player) proj.getShooter(), "", "§c注意: §aPvP已开启", 10, 20, 10);
+                        ((Player) e.getEntity()).damage(0.00);
+                        //((Player) e.getEntity()).setNoDamageTicks(60);
+                        //((Player) proj.getShooter()).setNoDamageTicks(60);
+                    }
                 }
             }
         }
+    }
+
+    @EventHandler
+    public void onFallDown(PlayerMoveEvent e) {
+        if (e.getTo().getY() < 0) {
+            BridgingAnalyzer.teleportCheckPoint(e.getPlayer());
+            Player damager = null;
+            Long time = 0L;
+            if(damage.containsKey(e.getPlayer())) damager = damage.get(e.getPlayer());
+            if(this.time.containsKey(e.getPlayer())) time = this.time.get(e.getPlayer());
+            Bukkit.getPluginManager().callEvent(new PlayerFallVoidEvent(e.getPlayer(),damager,time));
+        }
+    }
+    @EventHandler
+    public void onQuir(PlayerQuitEvent e){
+        damage.remove(e.getPlayer());
+        time.remove(e.getPlayer());
     }
 
     private int onPvPDamage(Player player, Player damager) {

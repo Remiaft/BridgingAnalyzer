@@ -9,7 +9,7 @@ import org.bukkit.inventory.PlayerInventory;
 public class Utils {
     public static void breakBlock(Block b) {
         if (!b.getChunk().isLoaded()) {
-            b.getChunk().load(false);
+            b.getChunk().load(true);
         }
         b.getWorld().playEffect(b.getLocation(), Effect.STEP_SOUND, b.getType());
         b.setType(Material.AIR);

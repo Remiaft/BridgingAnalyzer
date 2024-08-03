@@ -1,5 +1,7 @@
 package sakura.kooi.BridgingAnalyzer;
 
+import sakura.kooi.BridgingAnalyzer.utils.ActionBarUtils;
+import sakura.kooi.BridgingAnalyzer.utils.TitleUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
@@ -13,8 +15,6 @@ import org.bukkit.event.player.PlayerBucketEmptyEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.inventory.ItemStack;
-import sakura.kooi.BridgingAnalyzer.utils.ActionBarUtils;
-import sakura.kooi.BridgingAnalyzer.utils.TitleUtils;
 
 public class CounterListener implements Listener {
     @EventHandler
@@ -42,11 +42,11 @@ public class CounterListener implements Listener {
     public void onFallDown(PlayerMoveEvent e) {
         if (e.getTo().getY() < 0) {
             Counter c = BridgingAnalyzer.getCounter(e.getPlayer());
-            if (c.isSpeedCountEnabled()) {
+            if (c.isSpeedCountEnabled() && !c.isPvPEnabled()) {
                 TitleUtils.sendTitle(e.getPlayer(), "", "§cMax - " + c.getMaxBridgeSpeed() + " block/s", 1, 40, 1);
             }
             c.reset();
-            BridgingAnalyzer.teleportCheckPoint(e.getPlayer());
+            //BridgingAnalyzer.teleportCheckPoint(e.getPlayer());
         }
     }
 
@@ -65,7 +65,7 @@ public class CounterListener implements Listener {
             if (c.isSpeedCountEnabled()) {
                 TitleUtils.sendTitle(e.getPlayer(), "", "§b" + c.getBridgeSpeed() + " block/s", 1, 40, 1);
             }
-            Bukkit.getScheduler().runTaskLater(BridgingAnalyzer.getInstance(), () -> e.getPlayer().getInventory().addItem(new ItemStack(e.getPlayer().getItemInHand().getType(), 1, (short) 0, e.getPlayer().getItemInHand().getData().getData())), 1);
+            Bukkit.getScheduler().runTaskLater(BridgingAnalyzer.getInstance(), () -> e.getPlayer().getInventory().addItem(new ItemStack(e.getPlayer().getItemInHand().getType(), 1,  e.getPlayer().getItemInHand().getDurability())),1L);
         }
     }
 
